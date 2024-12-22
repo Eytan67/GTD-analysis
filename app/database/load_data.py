@@ -1,7 +1,8 @@
 import logging
 
+import pandas as pd
 from pandas import DataFrame
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, func
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import sessionmaker
 from app.config import POSTGRES_URL, POSTGRES_DB
@@ -52,21 +53,23 @@ def init_db():
         logging.error(f"Failed to initialize database: {e}", exc_info=True)
         raise
 
-
-
 def load_data_in_chunks(data_frame: DataFrame, chunk_size: int = 1000):
-    for start_row in range(0, len(data_frame), chunk_size):
-        chunk = data_frame.iloc[start_row:start_row + chunk_size]
+    try:
+        for start_row in range(0, len(data_frame), chunk_size):
+            chunk = data_frame.iloc[start_row:start_row + chunk_size]
 
-        with session_maker() as session:
-            try:
-                chunk_records = [Event.from_df(row[1]) for row in chunk.iterrows()]
-                session.add_all(chunk_records)
-                session.commit()
-                print(f"Loaded rows {start_row} to {start_row + chunk_size}")
-            except Exception as e:
-                session.rollback()
-                print(f"Error loading chunk {start_row} to {start_row + chunk_size}: {e}")
+            with session_maker() as session:
+                try:
+                    chunk_records = [Event.from_df(row[1]) for row in chunk.iterrows()]
+                    session.add_all(chunk_records)
+                    session.commit()
+                    print(f"Loaded rows {start_row} to {start_row + chunk_size}")
+                except Exception as e:
+                    session.rollback()
+                    print(f"Error loading chunk {start_row} to {start_row + chunk_size}: {e}")
+                    raise e
+        print("Data loaded successfully.")
+    except Exception as e:
+        logging.error(f"Failed to load data into database: {e}", exc_info=True)
 
 
-    print("Data loaded successfully.")
