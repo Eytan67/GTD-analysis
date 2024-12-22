@@ -38,7 +38,22 @@ def find_most_aggressive_groups():
         except Exception as e:
             print(f"An error occurred: {e}")
 
+def find_average_casualties_by_region():
+    with session_maker() as session:
+        try:
+            results = session.query(
+                Event.region,
+                func.sum(func.coalesce(Event.n_kill, 0)).label('total_kills'),
+                func.sum(func.coalesce(Event.n_wound, 0)).label('total_wounds')
+            ).group_by(Event.region).all()
 
+            df = pd.DataFrame(results, columns=['region', 'total_kills', 'total_wounds'])
+            # df['score'] = (df['total_kills'] * 2) + df['total_wounds']
+            # sorted_df = df.sort_values(by='score', ascending=False)
+            print(df)
+            return df
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
 analysis_bp = Blueprint('analysis', __name__)
 
@@ -46,6 +61,17 @@ analysis_bp = Blueprint('analysis', __name__)
 @analysis_bp.route('/deadliest', methods=['GET'])
 def deadliest_attack_style():
     res = find_deadliest_attack_style()
+    limit = request.args.get('limit', default=None)
+    if limit:
+        res = res.head(5)
+    res_json = res.to_dict('records')
+
+    return jsonify(res_json)
+
+# 2.
+@analysis_bp.route('/victims_by_region', methods=['GET'])
+def average_casualties_by_region():
+    res = find_average_casualties_by_region()
     limit = request.args.get('limit', default=None)
     if limit:
         res = res.head(5)
