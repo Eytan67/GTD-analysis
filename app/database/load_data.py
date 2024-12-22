@@ -1,89 +1,72 @@
-import pandas as pd
+import logging
+
+from pandas import DataFrame
 from sqlalchemy import create_engine, text
 from sqlalchemy.exc import OperationalError
-from sqlalchemy.orm import sessionmaker, DeclarativeBase
-from app.config import POSTGRES_URL, POSTGRES_DB, AAA
+from sqlalchemy.orm import sessionmaker
+from app.config import POSTGRES_URL, POSTGRES_DB
 from app.models import Base
-import logging
-import psycopg2
-path = r'C:\Users\eytan zichel\PycharmProjects\spark\GTD-analysis\app\database\gdt-1000rows.csv'
-
-df = pd.read_csv(path, encoding='ISO-8859-1')
-
-relvant = df[['eventid', 'iyear', 'imonth', 'iday', 'region', 'country_txt',
-              'city', 'latitude', 'longitude', 'attacktype1_txt', 'targtype1_txt',
-              'gname', 'nkill', "nwound"]]
-
-engine = create_engine(POSTGRES_URL)
-session_maker = sessionmaker(bind=engine)
+from app.models.event import Event
 
 
+def create_engine_for_postgres(url, dbname=None):
+    if dbname is None:
+        engine_url = url
+    else:
+        engine_url = f'{url}/{dbname}'
+    print(engine_url)
+    engine = create_engine(engine_url)
+    return engine
 
-def is_database_exist(db_name: str) -> bool:
+def is_database_exist(engine, db_name: str) -> bool:
     """Check if database exists"""
-    engine1 = create_engine(AAA)
-    with engine1.connect() as connection:
+    with engine.connect() as connection:
         try:
             result = connection.execute(text(f"SELECT 1 FROM pg_catalog.pg_database WHERE datname = '{db_name}'"))
             if result.fetchone():
                 return True
             else:
-                return True
+                return False
         except OperationalError as e:
             logging.info("Error connecting to PostgreSQL:", e)
 
+engine = None
+session_maker = None
 
 def init_db():
     """Initialize the database by creating all tables"""
-    if not is_database_exist(POSTGRES_DB):
-        engine1 = create_engine(AAA)
-        with engine1.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
+    global engine, session_maker
+    engine= create_engine_for_postgres(POSTGRES_URL)
+    if not is_database_exist(engine, POSTGRES_DB):
+        with engine.connect().execution_options(isolation_level="AUTOCOMMIT") as connection:
             connection.execute(text(f"CREATE DATABASE {POSTGRES_DB}"))
             logging.info(f"Database '{POSTGRES_DB}' created successfully.")
+    engine = create_engine_for_postgres(POSTGRES_URL, POSTGRES_DB)
+    session_maker = sessionmaker(bind=engine)
     try:
-        is_database_exist(POSTGRES_DB)
+        Base.metadata.drop_all(bind=engine)
+        logging.info("Successfully drop database tables")
         Base.metadata.create_all(engine)
         logging.info("Successfully created database tables")
-        # Base.metadata.drop_all(bind=engine)
-        # logging.info("Successfully drop database tables")
-        # with session_maker() as session:
-        #     if session.query(Incident).count() == 0:
-        #         initial_incident = Incident(
-        #             incident_id=uuid.uuid4(),
-        #             created_by="system_init",
-        #             created_at=datetime.now(),
-        #             description="Initial incident for testing",
-        #             message="System initialization"
-        #         )
-        #         session.add(initial_incident)
-        #
-        #         initial_participant = IncidentParticipant(
-        #             incident_id=initial_incident.incident_id,
-        #             person_id="init_person_001",
-        #             status=False,
-        #             details="Initial participant for testing"
-        #         )
-        #         session.add(initial_participant)
-        #
-        #         try:
-        #             session.commit()
-        #             logging.info("Successfully added initial data to tables")
-        #         except IntegrityError as e:
-        #             session.rollback()
-        #             logging.warning(f"Initial data already exists: {e}")
-        #     else:
-        #         logging.info("Database already contains data, skipping initialization")
-
     except Exception as e:
         logging.error(f"Failed to initialize database: {e}", exc_info=True)
         raise
 
-init_db()
-# print(is_database_exist(POSTGRES_DB))
-#
-# for index, row in relvant.iterrows():
-#     try:
-#         obj = Event.from_df(row)
-#         print(obj)
-#     except ValueError as e:
-#         print(f"Error processing row {index}: {e}")
+
+
+def load_data_in_chunks(data_frame: DataFrame, chunk_size: int = 1000):
+    for start_row in range(0, len(data_frame), chunk_size):
+        chunk = data_frame.iloc[start_row:start_row + chunk_size]
+
+        with session_maker() as session:
+            try:
+                chunk_records = [Event.from_df(row[1]) for row in chunk.iterrows()]
+                session.add_all(chunk_records)
+                session.commit()
+                print(f"Loaded rows {start_row} to {start_row + chunk_size}")
+            except Exception as e:
+                session.rollback()
+                print(f"Error loading chunk {start_row} to {start_row + chunk_size}: {e}")
+
+
+    print("Data loaded successfully.")
