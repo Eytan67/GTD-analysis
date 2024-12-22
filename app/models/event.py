@@ -1,4 +1,4 @@
-from uuid import UUID
+import uuid
 
 from sqlalchemy import Column, Integer, String, Float
 from app.models import Base
@@ -14,8 +14,8 @@ class Event(Base):
     city = Column(String, nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
-    n_kill = Column(Integer, nullable=False)
-    n_wound = Column(Integer, nullable=False)
+    n_kill = Column(Float, nullable=False)
+    n_wound = Column(Float, nullable=False)
     g_name = Column(String, nullable=True)
     attack_type = Column(String, nullable=True)
     target_type = Column(String, nullable=True)
@@ -24,7 +24,7 @@ class Event(Base):
     def from_df(cls, row):
         try:
             return cls(
-                id=row.get('eventid', UUID),
+                id=row.get('eventid', str(uuid.uuid4)),
                 year=int(row['iyear']),
                 month=row.get('imonth', None),
                 day=row.get('iday', None),
@@ -47,17 +47,3 @@ class Event(Base):
     def __repr__(self):
         return f"<Event {self.id} >, country {self.country}, city {self.city}"
 
-import pandas as pd
-
-path = r'C:\Users\eytan zichel\PycharmProjects\spark\GTD-analysis\app\database\gdt-1000rows.csv'
-
-df = pd.read_csv(path, encoding='ISO-8859-1')
-relvant = df[['eventid', 'iyear', 'imonth', 'iday', 'region', 'country_txt',
-              'city', 'latitude', 'longitude', 'attacktype1_txt', 'targtype1_txt',
-              'gname', 'nkill', "nwound"]]
-for index, row in relvant.iterrows():
-    try:
-        obj = Event.from_df(row)
-        print(obj)
-    except ValueError as e:
-        print(f"Error processing row {index}: {e}")
