@@ -4,6 +4,8 @@ from pandas import DataFrame
 
 
 def clean_data(data_frame:DataFrame)->DataFrame:
+    data_frame.loc[:, 'nkill'] = clean_nkill(data_frame['nkill'])
+    data_frame.loc[:, 'nwound'] = clean_nwound(data_frame['nwound'])
     return data_frame
 
 
