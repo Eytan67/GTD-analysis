@@ -5,7 +5,7 @@ from app.models import Base
 
 class Event(Base):
     __tablename__ = 'event'
-    id = Column(String, primary_key=True)
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
     year = Column(Integer, nullable=False)
     month = Column(Integer, nullable=True)
     day = Column(Integer, nullable=True)
@@ -24,7 +24,6 @@ class Event(Base):
     def from_df(cls, row):
         try:
             return cls(
-                id=row.get('eventid', str(uuid.uuid4)),
                 year=int(row['iyear']),
                 month=row.get('imonth', None),
                 day=row.get('iday', None),
