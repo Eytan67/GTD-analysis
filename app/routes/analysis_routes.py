@@ -16,8 +16,24 @@ def find_deadliest_attack_style():
             ).group_by(Event.attack_type).all()
 
             df = pd.DataFrame(results, columns=['Attack_Type', 'Total_Kills', 'Total_Wounds'])
-            df['Calculated_Column'] = (df['Total_Kills'] * 2) + df['Total_Wounds']
-            sorted_df = df.sort_values(by='Calculated_Column', ascending=False)
+            df['score'] = (df['Total_Kills'] * 2) + df['Total_Wounds']
+            sorted_df = df.sort_values(by='score', ascending=False)
+            return sorted_df
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+def find_most_aggressive_groups():
+    with session_maker() as session:
+        try:
+            results = session.query(
+                Event.g_name,
+                func.sum(func.coalesce(Event.n_kill, 0)).label('total_kills'),
+                func.sum(func.coalesce(Event.n_wound, 0)).label('total_wounds')
+            ).group_by(Event.g_name).all()
+
+            df = pd.DataFrame(results, columns=['g_name', 'total_kills', 'total_wounds'])
+            df['score'] = df['total_kills'] + df['total_wounds']
+            sorted_df = df.sort_values(by='score', ascending=False)
             return sorted_df
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -36,3 +52,10 @@ def deadliest_attack_style():
     res_json = res.to_dict('records')
 
     return jsonify(res_json)
+
+# 3.
+@analysis_bp.route('/most_aggressive', methods=['GET'])
+def most_aggressive_groups():
+    res = find_most_aggressive_groups().head(5).to_dict('records')
+
+    return jsonify(res)
