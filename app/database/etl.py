@@ -14,3 +14,9 @@ data = clean_data(data)
 #load
 init_db()
 load_data_in_chunks(data, 200)
+
+def etl():
+    data = relevant_data
+    data = clean_data(data)
+    init_db()
+    load_data_in_chunks(data, 200)
