@@ -1,5 +1,6 @@
 import uuid
 
+import pandas as pd
 from sqlalchemy import Column, Integer, String, Float
 from app.models import Base
 
@@ -14,8 +15,8 @@ class Event(Base):
     city = Column(String, nullable=True)
     latitude = Column(Float, nullable=True)
     longitude = Column(Float, nullable=True)
-    n_kill = Column(Float, nullable=False)
-    n_wound = Column(Float, nullable=False)
+    n_kill = Column(Float, nullable=True)
+    n_wound = Column(Float, nullable=True)
     g_name = Column(String, nullable=True)
     attack_type = Column(String, nullable=True)
     target_type = Column(String, nullable=True)
@@ -32,8 +33,8 @@ class Event(Base):
                 city=row.get('city', None),
                 latitude=row.get('latitude', None),
                 longitude=row.get('longitude', None),
-                n_kill=row.get('nkill', 0),
-                n_wound=row.get('nwound', 0),
+                n_kill=None if pd.isna(row.get('nkill')) else row.get('nkill'),
+                n_wound =None if pd.isna(row.get('nwound')) else row.get('nwound'),
                 g_name=row.get('gname', None),
                 attack_type=row.get('attacktype1_txt', None),
                 target_type=row.get('targtype1_txt', None)
