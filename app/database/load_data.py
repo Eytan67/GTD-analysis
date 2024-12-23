@@ -31,8 +31,9 @@ def is_database_exist(engine, db_name: str) -> bool:
         except OperationalError as e:
             logging.info("Error connecting to PostgreSQL:", e)
 
-engine = None
-session_maker = None
+
+engine = create_engine_for_postgres(POSTGRES_URL, POSTGRES_DB)
+session_maker = sessionmaker(bind=engine)
 
 def init_db():
     """Initialize the database by creating all tables"""

@@ -1,9 +1,9 @@
 import pandas as pd
 from flask import Blueprint, jsonify, request
 from sqlalchemy import func
-
 from app.database.load_data import session_maker
 from app.models.event import Event
+
 
 
 def find_deadliest_attack_style():
@@ -19,6 +19,21 @@ def find_deadliest_attack_style():
             df['score'] = (df['Total_Kills'] * 2) + df['Total_Wounds']
             sorted_df = df.sort_values(by='score', ascending=False)
             return sorted_df
+        except Exception as e:
+            print(f"An error occurred: {e}")
+
+def find_average_casualties_by_region():
+    with session_maker() as session:
+        try:
+            results = session.query(
+                Event.region,
+                (func.sum(func.coalesce(Event.n_kill, 0)) * 2 + func.sum(func.coalesce(Event.n_wound, 0))).label('score'),
+                func.count()
+            ).group_by(Event.region).all()
+            df = pd.DataFrame(results, columns=['region', 'score', 'count'])
+            df['score_per_count'] = df['score'] / df['count']
+
+            return df[['region', 'score_per_count']]
         except Exception as e:
             print(f"An error occurred: {e}")
 
@@ -38,22 +53,6 @@ def find_most_aggressive_groups():
         except Exception as e:
             print(f"An error occurred: {e}")
 
-def find_average_casualties_by_region():
-    with session_maker() as session:
-        try:
-            results = session.query(
-                Event.region,
-                func.sum(func.coalesce(Event.n_kill, 0)).label('total_kills'),
-                func.sum(func.coalesce(Event.n_wound, 0)).label('total_wounds')
-            ).group_by(Event.region).all()
-
-            df = pd.DataFrame(results, columns=['region', 'total_kills', 'total_wounds'])
-            # df['score'] = (df['total_kills'] * 2) + df['total_wounds']
-            # sorted_df = df.sort_values(by='score', ascending=False)
-            print(df)
-            return df
-        except Exception as e:
-            print(f"An error occurred: {e}")
 
 analysis_bp = Blueprint('analysis', __name__)
 
