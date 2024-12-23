@@ -23,7 +23,8 @@ def index():
         '/api/deadliest',
         '/api/most_aggressive',
         '/api/victims_by_region',
-        '/api/change_percent_by_region'
+        '/api/change_percent_by_region',
+        '/api/top_5_by_country_region'
     ]
     return render_template_string('''
         <html>
