@@ -22,7 +22,8 @@ def index():
     routes = [
         '/api/deadliest',
         '/api/most_aggressive',
-        '/api/victims_by_region'
+        '/api/victims_by_region',
+        '/api/change_percent_by_region'
     ]
     return render_template_string('''
         <html>

@@ -53,6 +53,21 @@ def find_most_aggressive_groups():
         except Exception as e:
             print(f"An error occurred: {e}")
 
+def find_change_percent_by_region():
+    with session_maker() as session:
+        try:
+            results = session.query(
+                Event.region,
+                Event.year,
+                func.count(Event.id).label('count')
+            ).group_by(Event.region, Event.year).all()
+            df = pd.DataFrame(results, columns=['region', 'year', 'count'])
+            df = df.sort_values(by=['region', 'year'])
+            df['change'] = df.groupby('region')['count'].pct_change() * 100
+            avg_change = df.groupby('region')['change'].mean().reset_index()
+            return avg_change
+        except Exception as e:
+            print(f"An error occurred: {e}")
 
 analysis_bp = Blueprint('analysis', __name__)
 
@@ -84,3 +99,14 @@ def most_aggressive_groups():
     res = find_most_aggressive_groups().head(5).to_dict('records')
 
     return jsonify(res)
+
+# 6.
+@analysis_bp.route('/change_percent_by_region', methods=['GET'])
+def change_percent_by_region():
+    res = find_change_percent_by_region()
+    limit = request.args.get('limit', default=None)
+    if limit:
+        res = res.head(5)
+    res_json = res.to_dict('records')
+
+    return jsonify(res_json)
