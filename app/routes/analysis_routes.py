@@ -69,6 +69,21 @@ def find_change_percent_by_region():
         except Exception as e:
             print(f"An error occurred: {e}")
 
+def find_top_5_by_region(region=None):
+    with session_maker() as session:
+        try:
+            results = session.query(
+                Event.region,
+                Event.g_name,
+                func.count(Event.id).label('count')
+            ).group_by(Event.region, Event.g_name).order_by(Event.region, func.count(Event.id).desc()).all()
+            df = pd.DataFrame(results, columns=['region', 'group name', 'count'])
+            result = df.groupby('region').apply(lambda x: x.nlargest(5, 'count'))
+            if region:
+                result = result[result['region'] == region]
+            return result
+        except Exception as e:
+            print(f"An error occurred: {e}")
 analysis_bp = Blueprint('analysis', __name__)
 
 # 1.
@@ -107,6 +122,16 @@ def change_percent_by_region():
     limit = request.args.get('limit', default=None)
     if limit:
         res = res.head(5)
+    res_json = res.to_dict('records')
+
+    return jsonify(res_json)
+
+# 8.
+@analysis_bp.route('/top_5_by_country_region', methods=['GET'])
+def top_5_by_region():
+    region = request.args.get('region', default=None)
+    res = find_top_5_by_region(region)
+
     res_json = res.to_dict('records')
 
     return jsonify(res_json)
