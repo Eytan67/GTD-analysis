@@ -1,8 +1,7 @@
 import pandas as pd
 
 
-
-path = r'C:\Users\eytan zichel\PycharmProjects\spark\GTD-analysis\app\database\gdt-1000rows.csv'
+path = r'/app/data/csv1-1000.csv'
 
 df = pd.read_csv(path, encoding='ISO-8859-1')
 relevant_columns = ['eventid', 'iyear', 'imonth', 'iday', 'region', 'country_txt',
@@ -10,3 +9,5 @@ relevant_columns = ['eventid', 'iyear', 'imonth', 'iday', 'region', 'country_txt
               'gname', 'nkill', "nwound"]
 
 relevant_data = df[relevant_columns]
+
+
