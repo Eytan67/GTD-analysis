@@ -1,6 +1,4 @@
 import logging
-
-import pandas as pd
 from pandas import DataFrame
 from sqlalchemy import create_engine, text, func
 from sqlalchemy.exc import OperationalError
@@ -8,6 +6,7 @@ from sqlalchemy.orm import sessionmaker
 from app.config import POSTGRES_URL, POSTGRES_DB
 from app.models import Base
 from app.models.event import Event
+
 
 
 def create_engine_for_postgres(url, dbname=None):
@@ -18,6 +17,9 @@ def create_engine_for_postgres(url, dbname=None):
     print(engine_url)
     engine = create_engine(engine_url)
     return engine
+
+engine = create_engine_for_postgres(POSTGRES_URL, POSTGRES_DB)
+session_maker = sessionmaker(bind=engine)
 
 def is_database_exist(engine, db_name: str) -> bool:
     """Check if database exists"""
@@ -30,10 +32,6 @@ def is_database_exist(engine, db_name: str) -> bool:
                 return False
         except OperationalError as e:
             logging.info("Error connecting to PostgreSQL:", e)
-
-
-engine = create_engine_for_postgres(POSTGRES_URL, POSTGRES_DB)
-session_maker = sessionmaker(bind=engine)
 
 def init_db():
     """Initialize the database by creating all tables"""

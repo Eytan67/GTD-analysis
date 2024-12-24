@@ -1,5 +1,4 @@
 from flask import Flask, render_template_string
-# from app.database.etl import etl
 from app.routes.analysis_routes import analysis_bp
 
 app = Flask(__name__)
@@ -28,6 +27,5 @@ def index():
     ''', routes=routes
     )
 if __name__ == '__main__':
-    # etl()
     app.run(host='0.0.0.0', port=5000,
             debug=True)

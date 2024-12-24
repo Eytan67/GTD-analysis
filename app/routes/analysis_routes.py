@@ -1,98 +1,21 @@
-import pandas as pd
-from flask import Blueprint, jsonify, request
-from sqlalchemy import func
-from app.database.load_data import session_maker
-from app.models.event import Event
+from flask import Blueprint, jsonify, request, render_template, render_template_string
+import folium
+from app.ripository.querys import *
 
 
 
-def find_deadliest_attack_style():
-    with session_maker() as session:
-        try:
-            results = session.query(
-                Event.attack_type,
-                func.sum(func.coalesce(Event.n_kill, 0)).label('total_kills'),
-                func.sum(func.coalesce(Event.n_wound, 0)).label('total_wounds')
-            ).group_by(Event.attack_type).all()
-
-            df = pd.DataFrame(results, columns=['Attack_Type', 'Total_Kills', 'Total_Wounds'])
-            df['score'] = (df['Total_Kills'] * 2) + df['Total_Wounds']
-            sorted_df = df.sort_values(by='score', ascending=False)
-            return sorted_df
-        except Exception as e:
-            print(f"An error occurred: {e}")
-
-def find_average_casualties_by_region():
-    with session_maker() as session:
-        try:
-            results = session.query(
-                Event.region,
-                (func.sum(func.coalesce(Event.n_kill, 0)) * 2 + func.sum(func.coalesce(Event.n_wound, 0))).label('score'),
-                func.count()
-            ).group_by(Event.region).all()
-            df = pd.DataFrame(results, columns=['region', 'score', 'count'])
-            df['score_per_count'] = df['score'] / df['count']
-
-            return df[['region', 'score_per_count']]
-        except Exception as e:
-            print(f"An error occurred: {e}")
-
-def find_most_aggressive_groups():
-    with session_maker() as session:
-        try:
-            results = session.query(
-                Event.g_name,
-                func.sum(func.coalesce(Event.n_kill, 0)).label('total_kills'),
-                func.sum(func.coalesce(Event.n_wound, 0)).label('total_wounds')
-            ).group_by(Event.g_name).all()
-
-            df = pd.DataFrame(results, columns=['g_name', 'total_kills', 'total_wounds'])
-            df['score'] = df['total_kills'] + df['total_wounds']
-            sorted_df = df.sort_values(by='score', ascending=False)
-            return sorted_df
-        except Exception as e:
-            print(f"An error occurred: {e}")
-
-def find_change_percent_by_region():
-    with session_maker() as session:
-        try:
-            results = session.query(
-                Event.region,
-                Event.year,
-                func.count(Event.id).label('count')
-            ).group_by(Event.region, Event.year).all()
-            df = pd.DataFrame(results, columns=['region', 'year', 'count'])
-            df = df.sort_values(by=['region', 'year'])
-            df['change'] = df.groupby('region')['count'].pct_change() * 100
-            avg_change = df.groupby('region')['change'].mean().reset_index()
-            return avg_change
-        except Exception as e:
-            print(f"An error occurred: {e}")
-
-def find_top_5_by_region(region=None):
-    with session_maker() as session:
-        try:
-            results = session.query(
-                Event.region,
-                Event.g_name,
-                func.count(Event.id).label('count')
-            ).group_by(Event.region, Event.g_name).order_by(Event.region, func.count(Event.id).desc()).all()
-            df = pd.DataFrame(results, columns=['region', 'group name', 'count'])
-            result = df.groupby('region').apply(lambda x: x.nlargest(5, 'count'))
-            if region:
-                result = result[result['region'] == region]
-            return result
-        except Exception as e:
-            print(f"An error occurred: {e}")
 analysis_bp = Blueprint('analysis', __name__)
+
 
 # 1.
 @analysis_bp.route('/deadliest', methods=['GET'])
 def deadliest_attack_style():
     res = find_deadliest_attack_style()
+
     limit = request.args.get('limit', default=None)
     if limit:
         res = res.head(5)
+
     res_json = res.to_dict('records')
 
     return jsonify(res_json)
@@ -101,9 +24,11 @@ def deadliest_attack_style():
 @analysis_bp.route('/victims_by_region', methods=['GET'])
 def average_casualties_by_region():
     res = find_average_casualties_by_region()
+
     limit = request.args.get('limit', default=None)
     if limit:
         res = res.head(5)
+
     res_json = res.to_dict('records')
 
     return jsonify(res_json)
@@ -119,19 +44,48 @@ def most_aggressive_groups():
 @analysis_bp.route('/change_percent_by_region', methods=['GET'])
 def change_percent_by_region():
     res = find_change_percent_by_region()
+
     limit = request.args.get('limit', default=None)
     if limit:
         res = res.head(5)
-    res_json = res.to_dict('records')
 
+    res_json = res.to_dict('records')
     return jsonify(res_json)
 
 # 8.
 @analysis_bp.route('/top_5_by_country_region', methods=['GET'])
 def top_5_by_region():
     region = request.args.get('region', default=None)
-    res = find_top_5_by_region(region)
+    response = find_top_5_by_region(region)
 
-    res_json = res.to_dict('records')
+    map = folium.Map(location=[31.7683, 35.2137], zoom_start=7)
 
-    return jsonify(res_json)
+    for loc in response:
+        if loc["latitude"] and loc["longitude"]:
+            popup_html = """
+                <div style="font-family: Arial, sans-serif; color: #333;">
+                    <h3 style="color: #0073e6; text-align: center;">Groups Information</h3>
+                    <ul style="list-style-type: none; padding: 0;">
+            """
+            for group in loc["groups"]:
+                popup_html += f"""
+                    <li style="padding: 8px; border-bottom: 1px solid #ddd;">
+                        <strong style="color: #333;">{group['group name']}</strong>: <span style="color: #0073e6;">{group['count']}</span> attacks
+                    </li>
+                """
+            popup_html += """
+                    </ul>
+                </div>
+            """
+            folium.Marker([loc["latitude"], loc["longitude"]], popup=folium.Popup(popup_html, max_width=300)).add_to(map)
+
+    map_html = map._repr_html_()
+
+    return render_template_string('''
+           <html>
+               <body>
+                   <h1>Top 5 by Region Map</h1>
+                   {{ map_html|safe }}
+               </body>
+           </html>
+       ''', map_html=map_html)

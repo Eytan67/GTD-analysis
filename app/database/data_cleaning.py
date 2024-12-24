@@ -1,14 +1,13 @@
 from datetime import datetime
-
 from pandas import DataFrame
 
 
+
 def clean_data(data_frame:DataFrame)->DataFrame:
-    data_frame.loc[:, 'nkill'] = clean_nkill(data_frame['nkill'])
-    data_frame.loc[:, 'nwound'] = clean_nwound(data_frame['nwound'])
+    data_frame = clean_year(data_frame)
+    data_frame['imonth'] = clean_month(data_frame['imonth'])
+    data_frame['day'] = clean_day(data_frame['day'])
     return data_frame
-
-
 
 def clean_year(data_frame:DataFrame, start_year = 1900, end_year = datetime.now().year):
     data_frame = data_frame[(data_frame['iyear'] >= start_year) & (data_frame['iyear'] <= end_year)]

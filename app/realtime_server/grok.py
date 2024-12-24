@@ -1,5 +1,8 @@
 import requests
 import json
+
+
+
 artile_text1 = {
     "articles": {
         "page": 1,
@@ -55,14 +58,9 @@ artile_text2 =  {
  }
 }
 
-
-
-
-# API key and endpoint
 API_KEY = "xai-fKSWH7QYePJAo6EfNXQfhIbFwTYs4BOjiC37zu2ligEuqWDqtxamrUyfcXxMKzEvRReEi3vOj0VOT5iv"  # Replace with your Grok API key
 API_URL = "https://api.x.ai/v1/chat/completions"
 
-# Define the schema in Python as a dictionary
 response_format = {
     "type": "json_schema",
     "json_schema": {
@@ -98,8 +96,6 @@ response_format = {
     }
 }
 
-
-# Function to send the request
 def classify_news_article(article_content):
     headers = {
         "Content-Type": "application/json",
@@ -110,7 +106,8 @@ def classify_news_article(article_content):
         "messages": [
             {"role": "system",
              "content": "You are an assistant classifying news articles into categories and locations. Please include latitude and longitude coordinates when possible."},
-            {"role": "user", "content": f"This is a news article: {article_content}"}
+            {"role": "user",
+             "content": f"This is a news article: {article_content}"}
         ],
         "model": "grok-2-1212",
         "stream": False,
@@ -118,14 +115,14 @@ def classify_news_article(article_content):
         "response_format": response_format
     }
 
-    # Send the request
     response = requests.post(API_URL, headers=headers, json=payload)
 
-    # Check for successful response
     if response.status_code == 200:
         try:
             response_json = response.json()
-            return response_json
+            raw_content = response_json["choices"][0]["message"]["content"]
+            parsed_content = json.loads(raw_content)
+            return parsed_content
         except json.JSONDecodeError:
             print("Failed to decode JSON response")
             return None
@@ -146,18 +143,12 @@ def extract_relevant_data(data):
     return extracted
 
 
-# Example usage
 if __name__ == "__main__":
     article = extract_relevant_data(artile_text1)
     result = classify_news_article(article)
     if result:
-        print(json.dumps(result, indent=4))
-        # חילוץ התוכן מתוך התשובה
-        raw_content = result["choices"][0]["message"]["content"]
-
-        # המרת התוכן מ-JSON למילון Python
-        parsed_content = json.loads(raw_content)
-
-        # הדפסת התוצאה
-        print(f"Classification: {parsed_content['classification']}")
-        print(f"Location: {parsed_content['location']}")
+        print('result:', result)
+        print(f"Classification: {result['classification']}")
+        print(f"Location: {result['location']}")
+        print(f"Longitude: {result['longitude']}")
+        print(f"Latitude: {result['latitude']}")
