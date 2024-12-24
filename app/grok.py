@@ -1,86 +1,5 @@
 import requests
 import json
-
-# API key and endpoint
-API_KEY = "xai-fKSWH7QYePJAo6EfNXQfhIbFwTYs4BOjiC37zu2ligEuqWDqtxamrUyfcXxMKzEvRReEi3vOj0VOT5iv"  # Replace with your Grok API key
-API_URL = "https://api.x.ai/v1/chat/completions"
-
-# Define the schema in Python as a dictionary
-response_format = {
-    "type": "json_schema",
-    "json_schema": {
-        "name": "news_classification",
-        "schema": {
-            "type": "object",
-            "properties": {
-                "classification": {
-                    "type": "string",
-                    "enum": [
-                        "Current terrorism event",
-                        "Past terrorism event",
-                        "Other news event"
-                    ]
-                },
-                "location": {
-                    "type": "string",
-                    "description": "The location where the event occurred"
-                }
-            },
-            "required": ["classification", "location"],
-            "additionalProperties": False
-        },
-        "strict": True
-    }
-}
-
-
-# Function to send the request
-def classify_news_article(article_content):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {API_KEY}"
-    }
-
-    payload = {
-        "messages": [
-            {"role": "system",
-             "content": "You are an assistant classifying news articles into categories and locations."},
-            {"role": "user", "content": f"This is a news article: {article_content}"}
-        ],
-        "model": "grok-2-1212",
-        "stream": False,
-        "temperature": 0,
-        "response_format": response_format
-    }
-
-    # Send the request
-    response = requests.post(API_URL, headers=headers, json=payload)
-
-    # Check for successful response
-    if response.status_code == 200:
-        try:
-            response_json = response.json()
-            return response_json
-        except json.JSONDecodeError:
-            print("Failed to decode JSON response")
-            return None
-    else:
-        print(f"Request failed with status code {response.status_code}: {response.text}")
-        return None
-
-
-def extract_relevant_data(data):
-    results = data.get("articles", {}).get("results", [])
-    extracted = []
-    for result in results:
-        dt = result.get("dateTime")
-        title = result.get("title")
-        body = result.get("body", "")
-        first_200_words = " ".join(body.split()[:200])
-        extracted.append({"dt": dt, "title": title, "body_snippet": first_200_words})
-    return extracted
-
-
 artile_text1 = {
     "articles": {
         "page": 1,
@@ -135,9 +54,101 @@ artile_text2 =  {
  "title": "Asian News International (ANI)"
  }
 }
+
+
+
+
+# API key and endpoint
+API_KEY = "xai-fKSWH7QYePJAo6EfNXQfhIbFwTYs4BOjiC37zu2ligEuqWDqtxamrUyfcXxMKzEvRReEi3vOj0VOT5iv"  # Replace with your Grok API key
+API_URL = "https://api.x.ai/v1/chat/completions"
+
+# Define the schema in Python as a dictionary
+response_format = {
+    "type": "json_schema",
+    "json_schema": {
+        "name": "news_classification",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "classification": {
+                    "type": "string",
+                    "enum": [
+                        "Current terrorism event",
+                        "Past terrorism event",
+                        "Other news event"
+                    ]
+                },
+                "location": {
+                    "type": "string",
+                    "description": "The location where the event occurred"
+                },
+                "longitude": {
+                    "type": "number",
+                    "description": "The longitude coordinate of the event location"
+                },
+                "latitude": {
+                    "type": "number",
+                    "description": "The latitude coordinate of the event location"
+                }
+            },
+            "required": ["classification", "location", "longitude", "latitude"],
+            "additionalProperties": False
+        },
+        "strict": True
+    }
+}
+
+
+# Function to send the request
+def classify_news_article(article_content):
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {API_KEY}"
+    }
+
+    payload = {
+        "messages": [
+            {"role": "system",
+             "content": "You are an assistant classifying news articles into categories and locations. Please include latitude and longitude coordinates when possible."},
+            {"role": "user", "content": f"This is a news article: {article_content}"}
+        ],
+        "model": "grok-2-1212",
+        "stream": False,
+        "temperature": 0,
+        "response_format": response_format
+    }
+
+    # Send the request
+    response = requests.post(API_URL, headers=headers, json=payload)
+
+    # Check for successful response
+    if response.status_code == 200:
+        try:
+            response_json = response.json()
+            return response_json
+        except json.JSONDecodeError:
+            print("Failed to decode JSON response")
+            return None
+    else:
+        print(f"Request failed with status code {response.status_code}: {response.text}")
+        return None
+
+
+def extract_relevant_data(data):
+    results = data.get("articles", {}).get("results", [])
+    extracted = []
+    for result in results:
+        dt = result.get("dateTime")
+        title = result.get("title")
+        body = result.get("body", "")
+        first_200_words = " ".join(body.split()[:200])
+        extracted.append({"dt": dt, "title": title, "body_snippet": first_200_words})
+    return extracted
+
+
 # Example usage
 if __name__ == "__main__":
-    article = extract_relevant_data(artile_text2)
+    article = extract_relevant_data(artile_text1)
     result = classify_news_article(article)
     if result:
         print(json.dumps(result, indent=4))
